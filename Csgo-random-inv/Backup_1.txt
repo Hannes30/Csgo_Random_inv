@@ -1,0 +1,116 @@
+import fetch from 'node-fetch'
+import express, { json, response } from 'express';
+import mysql from 'mysql2';
+
+const app = express()
+const port = 8080;
+
+var con = mysql.createConnection({
+  host: "localhost",
+  user: "hannes",
+  password: "hannes",
+  database:"csgoskins"
+});
+let x = new Date();
+let counter =0;
+
+
+app.use(function (req, res, next) {
+  res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
+  res.header('Access-Control-Allow-Methods', 'GET', 'PUT', 'POST', 'DELETE');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  next();
+});
+fetch("http://localhost:3000/JSON/listofcsgoskins.json")
+  .then(res=> res.json())
+  .then(res => arrays(res))
+let conditions =["Factory","Minimal Wear","Field-Tested","Well-Worn","Battle-Scarred"]
+let skins2;
+let WeaponArrays = {
+}
+con.connect(function(err) {
+  if (err) throw err;
+  con.query("SELECT * FROM skins", function (err, result, fields) {
+    if (err) throw err;
+    console.log(result);
+    //logus(result);  
+  });
+});
+function logus(array)
+{
+  array.forEach(element=> 
+    {
+      if(element.weapon in WeaponArrays)
+      {
+        WeaponArrays[element.weapon].push(element);
+      }
+      else{
+        WeaponArrays[element.weapon]=[];
+        WeaponArrays[element.weapon].push(element);
+      }
+    })
+    console.log(WeaponArrays);
+}
+function arrays(skins)
+{
+  console.log(skins);
+  skins2 = skins;
+  skins.forEach(element => {
+    conditions.forEach(curcondition=>{
+      if(element.weapon in WeaponArrays)
+      {
+        WeaponArrays[element.weapon].push(insert);
+      }
+      else{
+        WeaponArrays[element.weapon]=[];
+        WeaponArrays[element.weapon].push(insert);
+      }
+    })
+  });
+  for(let Weapons in WeaponArrays)
+  {
+    const cur = WeaponArrays[Weapons];
+    for(let i = 0; i< cur.length ; i++)
+    {
+      con.connect(function(err) {
+        if (err) throw err;
+        var sql = 'INSERT INTO skins (weapon,skinname,condi,price,time) VALUES ("'+cur[i].weapon+'","'+cur[i].name+'","'+cur[i].condition+'",'+cur[i].price+','+cur[i].time+')';
+        con.query(sql, function (err, result) {
+          if (err) throw err;
+          console.log(counter++);
+        });
+      });
+    }
+  }
+}
+app.get('', (req, res) => {
+    let weapon = skins2[Math.floor(Math.random() * skins2.length)]
+    let curcondition = conditions[Math.floor(Math.random() * conditions.length)]
+    let i = 0;
+    fetch("http://steamcommunity.com/market/priceoverview/?country=DE&currency=3&appid=730&market_hash_name="+weapon.weapon+"%20%7C%20"+weapon.name+"%20%28"+curcondition+"%29")
+      .then(response=> response.json())
+      .then(response=>{
+        let resus = {
+          weapon : weapon.weapon,
+          name: weapon.name,
+          condition: curcondition,
+          price: response['lowest_price'],
+          success : response['success']
+        }
+      if(response==null)
+      {
+        res.send("Steam Blocked");
+      }
+      else if(response["success"] ==true)
+      {
+        
+        console.log()
+        res.send(resus)}     
+      else
+      {
+        res.send();
+      }
+      })
+})
+app.listen(port,console.log("listening on "+port));
+
